@@ -1,0 +1,16 @@
+
+
+# Potential environment folders
+.venv/
+venv/
+.env/
+env/
+
+# Cache files
+**.pyc
+__pycache__
+
+# Local storage folders
+models/
+ignore/
+
