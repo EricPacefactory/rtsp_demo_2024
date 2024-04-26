@@ -8,6 +8,11 @@
 import cv2
 import numpy as np
 
+from collections import OrderedDict
+
+from lib.misc import get_first_dict_item
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Classes
 
@@ -22,27 +27,21 @@ class ArucoDemo:
     FONTSCALE = 1
     ARROWSCALE = 0.35
     
-    ARU_DICTS_LIST = [
-        cv2.aruco.DICT_4X4_250,
-        cv2.aruco.DICT_5X5_250,
-        cv2.aruco.DICT_6X6_250,
-        cv2.aruco.DICT_7X7_250,
-    ]
-    
     def __init__(self):
-        
-        self._detector_list = self._make_detectors()
-        self._num_detectors = len(self._detector_list)
-        self._idx_select = 0
+        self._name_to_model_dict = self._make_detectors()
+        self._num_detectors = len(self._name_to_model_dict)
+        self._model_select, _ = get_first_dict_item(self._name_to_model_dict)
     
-    def set_model_select(self, selection_index: int):
-        self._idx_select = selection_index
+    def get_model_names(self) -> list[str]:
+        return list(self._name_to_model_dict.keys())
+    
+    def set_model_select(self, model_select: str):
+        self._model_select = model_select
+        return self
     
     def process_frame(self, frame):
         
-        idx = self._idx_select % self._num_detectors
-        detector = self._detector_list[idx]
-        
+        detector = self._name_to_model_dict[self._model_select]
         aru_xys_px, aru_ids, _ = detector.detectMarkers(frame)
         results = (aru_xys_px, aru_ids)
         
@@ -90,20 +89,28 @@ class ArucoDemo:
         
         return display_frame
 
-    def _make_detectors(self):
+    def _make_detectors(self) -> dict:
         
-        detector_list = []
-        for aru_dict in self.ARU_DICTS_LIST:
+        # Pre-define which aruco detectors we'll load
+        ARU_DICTS_LUT = {
+            "4x4": cv2.aruco.DICT_4X4_1000,
+            "5x5": cv2.aruco.DICT_5X5_1000,
+            "6x6": cv2.aruco.DICT_6X6_1000,
+            "7x7": cv2.aruco.DICT_7X7_1000,
+        }
+        
+        name_to_detector_dict = OrderedDict()
+        for name, aru_dict in ARU_DICTS_LUT.items():
             aru_dict = cv2.aruco.getPredefinedDictionary(aru_dict)
             aru_params = cv2.aruco.DetectorParameters()
             aru_detector = cv2.aruco.ArucoDetector(aru_dict, aru_params)
-            detector_list.append(aru_detector)
+            name_to_detector_dict[name] = aru_detector
         
-        return detector_list
+        return name_to_detector_dict
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
-
 
 def draw_line(frame, xy1, xy2, fg_color = (0,255, 0),
               fg_thickness = 3, bg_color = (0,0,0), bg_thickness = 5, line_type = cv2.LINE_AA):

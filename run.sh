@@ -1,18 +1,21 @@
 #!/bin/sh
 
-# Try to activate a virtual env before running demo script
-VENV_NAMES="env .env venv .venv"
-for name in $VENV_NAMES; do
-    VENV_PATH="$PWD/$name/bin/activate"
-    if [ -e $VENV_PATH ]; then
-        echo "Using virtualenv: $name"
-        . "$PWD/$name/bin/activate"
-        python3 "$PWD/rtsp_demo.py" "$@"
-        deactivate
-        exit 0
-    fi
-done
 
-# Feedback if we can't find the virtual env
-echo "Couldn't find virtual environment folder! Cannot run script..."
+# Define expected virtual environment folder name
+TARGET_VENV=".venv"
+
+# Check if the virtual environment exists
+if [ -d "$TARGET_VENV" ]; then
+    . "$TARGET_VENV/bin/activate"
+else
+    echo "Creating virtual environment..."
+    python3 -m venv "$TARGET_VENV"
+    . "$TARGET_VENV/bin/activate"
+    pip3 install -r requirements.txt
+fi
+
+
+# Run the script
+python3 "$PWD/demo.py" "$@"
+deactivate
 

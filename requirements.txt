@@ -1,16 +1,15 @@
 
+# For image processing + aruco markers
 opencv-python		==4.9.*
 numpy			==1.26.*
 
+# For depth models
 onnx 			==1.16.*          
 onnxruntime		==1.17.*
 
-
+# For yolo models (cpu install)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch			==2.2.*
 torchvision		==0.17.*
-
-
 ultralytics		==8.1.*
-
 

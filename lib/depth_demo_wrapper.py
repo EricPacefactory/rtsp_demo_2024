@@ -5,11 +5,12 @@
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-import os
-
 import cv2
 import numpy as np
 import onnxruntime
+
+from lib.downloading import download_missing_model_files
+from lib.misc import get_first_dict_item, get_file_to_path_lut
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -17,29 +18,39 @@ import onnxruntime
 
 class DepthDemo:
     
+    # Hard-coded configuration for depth-anything models
+    _proc_wh = (518, 518)
     _mean_rgb = np.float32([0.485, 0.456, 0.406])
     _std_rgb = np.float32([0.229, 0.224, 0.225])
     
-    def __init__(self, models_folder_path):
-        
-        models_list, proc_wh_list = self._load_models(models_folder_path)
-        self._orts_list = models_list
-        self._process_wh_list = proc_wh_list
-        self._idx_select = 0
-        self._num_models = len(self._orts_list)
+    # For reference, download links to model files
+    _download_urls = [
+        "https://github.com/fabio-sim/Depth-Anything-ONNX/releases/download/v1.0.0/depth_anything_vits14.onnx",
+        "https://github.com/fabio-sim/Depth-Anything-ONNX/releases/download/v1.0.0/depth_anything_vitb14.onnx",
+    ]
     
-    def set_model_select(self, selection_index: int):
-        self._idx_select = selection_index
+    def __init__(self, models_folder_path = "models/depth"):
+        
+        # Get model files if needed
+        download_missing_model_files(self._download_urls, models_folder_path)
+        
+        self._name_to_model_dict = self._load_models(models_folder_path)
+        self._num_models = len(self._name_to_model_dict)
+        self._model_select, _ = get_first_dict_item(self._name_to_model_dict)
+    
+    def get_model_names(self) -> list[str]:
+        return list(self._name_to_model_dict.keys())
+    
+    def set_model_select(self, model_select: str):
+        self._model_select = model_select
     
     def process_frame(self, frame_bgr):
         
-        idx = self._idx_select % self._num_models
-        ort_session = self._orts_list[idx]
-        proc_wh = self._process_wh_list[idx]
+        ort_session = self._name_to_model_dict[self._model_select]
         
         # Image must be RGB ordered, with CxHxW shape, with normalized mean/standard deviation
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        scaled_frame = cv2.resize(frame_rgb, dsize=proc_wh)
+        scaled_frame = cv2.resize(frame_rgb, dsize=self._proc_wh)
         scaled_frame = (np.float32(scaled_frame)/255.0 - self._mean_rgb) / self._std_rgb
         scaled_frame = np.transpose(scaled_frame, (2, 0, 1))
         scaled_frame = np.expand_dims(scaled_frame, axis=0)
@@ -65,30 +76,16 @@ class DepthDemo:
     
     def _load_models(self, folder_path):
         
-        ''' Helper which loads multiple models, smallest first '''
+        '''
+        Helper which loads multiple depth models, smallest first
+        Returns a dictionary whose keys are the model names (no file extension) and
+        have corresponding values of the models (onnx sessions) themselves
+        '''
         
-        # For clarity
-        allowable_exts = (".onnx",)
-        is_allowed_ext = lambda file: os.path.splitext(file.lower())[1] in allowable_exts
-        ort_providers = ["CPUExecutionProvider"]
+        # Helper used to create onnx sessions
+        make_ort = lambda path: onnxruntime.InferenceSession(path, providers=["CPUExecutionProvider"])
         
-        # Get listing of model files available
-        files_list = os.listdir(folder_path)
-        file_paths_list = [os.path.join(folder_path, file) for file in files_list]
-        model_paths_list = [path for path in file_paths_list if is_allowed_ext(path)]
-        paths_smallest_first_list = sorted(model_paths_list, key=os.path.getsize)
+        name_to_path_dict = get_file_to_path_lut(folder_path, allowable_exts = [".onnx"])
+        name_to_model_dict = {name: make_ort(path) for name, path in name_to_path_dict.items()}
         
-        # Build models + processing sizes per model
-        models_list = []
-        proc_wh_list = []
-        for path in paths_smallest_first_list:
-            model = onnxruntime.InferenceSession(path, providers=ort_providers)
-            models_list.append(model)
-            proc_wh_list.append((518,518))
-        
-        # Add extra copy of biggest model with larger processing size, out of curiosity
-        models_list.append(models_list[-1])
-        proc_wh_list.append((756,756))
-        
-        return models_list, proc_wh_list
-
+        return name_to_model_dict

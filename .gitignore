@@ -1,5 +1,4 @@
 
-
 # Potential environment folders
 .venv/
 venv/
@@ -9,6 +8,9 @@ env/
 # Cache files
 **.pyc
 __pycache__
+
+# System helpers
+.source_history.json
 
 # Local storage folders
 models/
