@@ -88,6 +88,7 @@ KEY_UPARROW = 82
 KEY_DOWNARROW = 84
 
 # Set up frame reading
+video_source = video_source.replace('"', "").replace("'", "")
 source_type, vread = make_video_reader(video_source)
 history.save(video_source)
 

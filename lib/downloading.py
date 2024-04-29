@@ -7,6 +7,7 @@
 
 import os
 import urllib.request
+import urllib.error
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -24,7 +25,23 @@ def download_file_from_url(url, save_folder_path):
     save_path = os.path.join(save_folder_path, save_name)
     os.makedirs(save_folder_path, exist_ok=True)
     
-    urllib.request.urlretrieve(url, save_path)
+    # If download fails, ask user to do it manually
+    try:
+        urllib.request.urlretrieve(url, save_path)
+    except urllib.error.URLError as err:
+        print("",
+              "Error:",
+              str(err),
+              "",
+              "Unable to download file!",
+              "Please manually download the following file:",
+              url,
+              "",
+              "And place it in the folder:",
+              save_folder_path,
+              "",
+              sep="\n", flush=True)
+        raise SystemExit()
     
     return save_path
 
